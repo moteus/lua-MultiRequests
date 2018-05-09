@@ -1,7 +1,8 @@
 # lua-MultiRequests
-Make multiple requests from different coroutines in parallel
-
 [![Build Status](https://travis-ci.org/moteus/lua-MultiRequests.svg?branch=master)](https://travis-ci.org/moteus/lua-MultiRequests)
+[![License](http://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
+
+## Make multiple requests from different coroutines in parallel
 
 This module uses cURL library to makes all requests.
 
