@@ -7,8 +7,8 @@ source = {
 }
 
 description = {
-  summary    = "PostgreSQL client for lluv library",
-  homepage   = "https://github.com/moteus/lua-lluv-pg",
+  summary    = "Make multiple requests from different coroutines in parallel",
+  homepage   = "https://github.com/moteus/lua-MultiRequests",
   license    = "MIT/X11",
   maintainer = "Alexey Melnichuk",
   detailed   = [[
@@ -17,7 +17,7 @@ description = {
 
 dependencies = {
   "lua >= 5.1, < 5.4",
-  "lua-curl >= 3.0",
+  "lua-curl >= 0.3.0",
 }
 
 build = {
@@ -26,6 +26,6 @@ build = {
   type = "builtin",
 
   modules = {
-    [ 'MultiRequests'     ] = 'src/MultiRequests.lua',
+    [ 'MultiRequests' ] = 'src/MultiRequests.lua',
   };
 }
