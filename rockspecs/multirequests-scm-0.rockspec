@@ -3,7 +3,7 @@ version = "scm-0"
 
 source = {
   url = "https://github.com/moteus/lua-MultiRequests/archive/master.zip",
-  dir = "lua-lluv-pg-master",
+  dir = "lua-MultiRequests-master",
 }
 
 description = {
