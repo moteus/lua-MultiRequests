@@ -36,7 +36,7 @@ local SLEEP = {}
 CoSleep.SLEEP = SLEEP
 
 function CoSleep.new()
-  self = setmetatable({}, CoSleep)
+  local self = setmetatable({}, CoSleep)
 
   self._timers = setmetatable({}, {__mode = 'kv'})
   self._timeouts = {}
@@ -90,11 +90,11 @@ end
 else -- ztimer does not avaliable
 
 function CoSleep.new()
-  self = setmetatable({}, CoSleep)
+  local self = setmetatable({}, CoSleep)
   return self
 end
 
-function CoSleep:sleep(timeout)end
+function CoSleep:sleep()end
 
 function CoSleep:interval()end
 
