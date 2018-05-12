@@ -35,6 +35,9 @@ before_install:
 install:
   - luarocks make rockspecs/multirequests-scm-0.rockspec
 
+before_script:
+  - luarocks show lzmq-timer > /dev/null 2>&1 || luarocks install lzmq-timer
+
 script:
   - lua examples/basic.lua
 

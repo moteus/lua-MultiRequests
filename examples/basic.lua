@@ -39,6 +39,12 @@ local mrequest = MultiRequests.new()
 for tid = 1, 2 do
   mrequest:add_worker(function(requester)
     for i, url in iurls() do
+      local timeout = 1000 + 1000 * math.random(5)
+
+      printf('[INFO][%d - %d] sleeping %d', tid, i, timeout)
+      requester:sleep(timeout)
+      printf('[INFO][%d - %d] wakeup', tid, i)
+
       local response, err = requester:send_request{url = url}
       if response then
         printf('[INFO][%d - %d] %s %s', tid, i, tostring(response.code), tostring(response.content))
