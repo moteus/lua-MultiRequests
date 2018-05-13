@@ -16,8 +16,8 @@ local function prequire(m)
   return err
 end
 
-local cURL = require "cURL.safe"
-local json = prequire "cjson.safe"
+local cURL   = require  "cURL.safe"
+local json   = prequire "cjson.safe"
 local ztimer = prequire 'lzmq.timer'
 
 local M = {
@@ -35,9 +35,12 @@ local SLEEP = {}
 
 CoSleep.SLEEP = SLEEP
 
-function CoSleep.new()
+function CoSleep.new(...)
   local self = setmetatable({}, CoSleep)
+  return self:__init(...)
+end
 
+function CoSleep:__init()
   self._timers = setmetatable({}, {__mode = 'kv'})
   self._timeouts = {}
 
@@ -115,13 +118,14 @@ function MultiRequests.new(...)
 end
 
 function MultiRequests:__init()
-  self._workers = {}
   self._multi = cURL.multi()
-  self._responses = {}
-  self._handels = {}
-  self._remain = 0
+  self._coros          = {} -- easy => co map
+  self._handels        = {} -- easy cache
+  self._sleep          = CoSleep.new() -- co sleep queue
+  self._remain         = 0 -- number of requests in progress
+
+  self._workers        = {}
   self._error_handlers = {}
-  self._sleep = CoSleep.new()
 
   return self
 end
@@ -140,11 +144,7 @@ local function append_request(self, easy, co)
   end
 
   self._remain = self._remain + 1
-
-  local response = {_co = co, content = {}}
-  self._responses[easy] = response
-
-  easy:setopt_writefunction(table.insert, response.content)
+  self._coros[easy] = co
 
   return self
 end
@@ -159,8 +159,8 @@ local function remove_worker(self, co)
   end
 end
 
-local function proceed_next(self, co, response)
-  local ok, easy = coroutine.resume(co, response)
+local function proceed_next(self, co, ok, err)
+  local ok, easy = coroutine.resume(co, ok, err)
 
   if ok and easy then
     if easy ~= CoSleep.SLEEP then
@@ -180,17 +180,16 @@ local function proceed_next(self, co, response)
   return ok, easy
 end
 
-local function proceed_response(self, easy, response)
-  local co = response._co
+local function proceed_response(self, easy, ok, err)
+  local co = self._coros[easy]
+  self._coros[easy] = nil
+  self._remain      = self._remain - 1
 
-  self._responses[easy] = nil
-  self._remain          = self._remain - 1
-  response._co          = nil
-  response.url          = easy:getinfo_effective_url()
-  response.code         = easy:getinfo_response_code()
-  response.content      = table.concat(response.content)
+  proceed_next(self, co, ok, err)
+end
 
-  proceed_next(self, co, response)
+function MultiRequests:easy_perform(easy)
+  return coroutine.yield(easy)
 end
 
 function MultiRequests:send_request(request)
@@ -198,43 +197,57 @@ function MultiRequests:send_request(request)
 
   easy:reset()
 
-  local body
-  if request.body then
-    if type(request.body) == 'string' then
-      body = request.body
-    else
-      assert(json, 'no json module loaded. Unsupported non string requst body')
+  local opt = {}
+  for name, param in pairs(request) do
+    if name == 'body' then
+      local body
+      if type(param) == 'string' then
+        body = param
+      else
+        assert(json, 'no json module loaded. Unsupported non string requst body')
 
-      local err
-      body, err = json.encode(request.body)
-      if not body then
-        return nil, err
+        local err
+        body, err = json.encode(param)
+        if not body then
+          return nil, err
+        end
       end
+
+      opt.postfields = body
+    elseif name == 'method' then
+      opt.customrequest = param
+    elseif name == 'headers' then
+      opt.httpheader = param
+    else
+      opt[name] = param
     end
   end
 
-  local ok, err = easy:setopt{
-    url            = request.url,
-    timeout        = request.timeout,
-    followlocation = request.followlocation,
-    post           = request.post,
-    httpheader     = request.headers,
-    postfields     = body,
-  }
+  local ok, err = easy:setopt(opt)
 
   if not ok then
     return nil, err
   end
 
-  local response = coroutine.yield(easy)
+  local content
+  if not opt.writefunction then
+    content = {}
+    easy:setopt_writefunction(table.insert, content)
+  end
+
+  ok, err = self:easy_perform(easy)
 
   table.insert(self._handels, easy)
 
-  if response.error then
-    return nil, response.error
+  if not ok then
+    return nil, err
   end
 
-  return response
+  return {
+    url     = easy:getinfo_effective_url();
+    code    = easy:getinfo_response_code();
+    content = content and table.concat(content);
+  }
 end
 
 if ztimer then
@@ -260,9 +273,7 @@ function MultiRequests:run()
             local easy, ok, err = self._multi:info_read(true) -- get result and remove handle
             if easy == 0 then break end                       -- no more data avaliable for now
 
-            local response = self._responses[easy]
-            response.error = err
-            proceed_response(self, easy, response)
+            proceed_response(self, easy, ok, err)
           end
         end
 
