@@ -28,8 +28,7 @@ local M = {
 }
 
 -------------------------------------------------------------------
-local CoSleep = {} if ztimer then
-CoSleep.__index = CoSleep
+local CoSleep = {} CoSleep.__index = CoSleep if ztimer then
 
 local SLEEP = {}
 
@@ -192,6 +191,14 @@ function MultiRequests:easy_perform(easy)
   return coroutine.yield(easy)
 end
 
+function MultiRequests:multi_perform(easy)
+  -- if coro takes long time to complit.
+  -- it has to call this function to allows libcurl do io
+  -- e.g. remote side send SSL handshake and wait response.
+  -- libcurl have to response to it in some time.
+  self._multi:perform()
+end
+
 function MultiRequests:send_request(request)
   local easy = table.remove(self._handels) or cURL.easy()
 
@@ -258,6 +265,19 @@ end
 
 end
 
+local function check_sleeping(self)
+  local n = 0
+
+  while true do
+    local co = self._sleep:get_expire()
+    if not co then break end
+    proceed_next(self, co)
+    n = n + 1
+  end
+
+  return n
+end
+
 function MultiRequests:run()
   while #self._workers > 0 do
     for i = #self._workers, 1, -1 do
@@ -267,32 +287,28 @@ function MultiRequests:run()
 
     while (self._remain > 0) or (not self._sleep:empty()) do
       if self._remain > 0 then
-        local last = self._multi:perform()                    -- do some work
-        if last < self._remain then                           -- we have done some tasks
-          while true do                                       -- proceed results/errors
-            local easy, ok, err = self._multi:info_read(true) -- get result and remove handle
-            if easy == 0 then break end                       -- no more data avaliable for now
-
-            proceed_response(self, easy, ok, err)
+        local last = self._multi:perform()
+        while last < self._remain do
+          local easy, ok, err = self._multi:info_read(true) -- get result and remove handle
+          if easy == 0 then break end                       -- no more data avaliable for now
+          proceed_response(self, easy, ok, err)
+          last = self._multi:perform()
+          if check_sleeping(self) > 0 then
+            last = self._multi:perform()
           end
         end
 
-        local timeout = self._sleep:interval()
-        self._multi:wait(timeout)                             -- wait while libcurl do io select
+        -- do not wait too long if there exists some active io
+        self._multi:wait()
       else
+        -- we can sleep as long as needed because we do not bother about any IO
         local timeout = self._sleep:interval()
         if timeout then
           ztimer.sleep(timeout)
         end
       end
-
-      while true do
-        local co = self._sleep:get_expire()
-        if not co then
-          break
-        end
-        proceed_next(self, co)
-      end
+  
+      check_sleeping(self)
     end
   end
 end
