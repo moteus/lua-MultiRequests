@@ -10,8 +10,8 @@ This module uses cURL library to makes all requests.
 ```Lua
 local mrequest = MultiRequests.new()
 
--- start coroutine
-mrequest:add_worker(function(requester)
+-- start worker coroutines
+mrequest:add_worker(2, function(requester)
   for i, url in ipairs(urls) do
     local response, err = requester:send_request{url = url}
     if response then

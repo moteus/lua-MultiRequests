@@ -129,10 +129,15 @@ function MultiRequests:__init()
   return self
 end
 
-function MultiRequests:add_worker(fn, errf)
-  local co = coroutine.create(fn)
-  table.insert(self._workers, co)
-  self._error_handlers[co] = errf
+function MultiRequests:add_worker(n, fn, errf)
+  if type(n) ~= 'number' then
+    fn, errf, n = n, fn, nil
+  end
+  for _ = 1, (n or 1) do
+    local co = coroutine.create(fn)
+    table.insert(self._workers, co)
+    self._error_handlers[co] = errf
+  end
   return self
 end
 
