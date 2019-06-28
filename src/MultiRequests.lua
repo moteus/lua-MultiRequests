@@ -2,7 +2,7 @@
 --
 --  Author: Alexey Melnichuk <alexeymelnichuck@gmail.com>
 --
---  Copyright (C) 2018 Alexey Melnichuk <alexeymelnichuck@gmail.com>
+--  Copyright (C) 2018-2019 Alexey Melnichuk <alexeymelnichuck@gmail.com>
 --
 --  Licensed according to the included 'LICENSE' document
 --
@@ -22,9 +22,9 @@ local ztimer = prequire 'lzmq.timer'
 
 local M = {
   _NAME      = 'MultiRequests',
-  _VERSION   = '0.1.0-dev',
+  _VERSION   = '0.1.0',
   _LICENSE   = "MIT",
-  _COPYRIGHT = "Copyright (c) 2018 Alexey Melnichuk",
+  _COPYRIGHT = "Copyright (c) 2018-2019 Alexey Melnichuk",
 }
 
 -------------------------------------------------------------------
